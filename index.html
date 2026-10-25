@@ -1,0 +1,1980 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Datasplore</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cyan: #3ef2ff;
+    --pink: #ff3ec8;
+    --bg: #02030a;
+    --text: #d8f6ff;
+    --dim: #6f8aa0;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--text);
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    -webkit-user-select: none; user-select: none;
+    touch-action: none;
+  }
+  canvas { display: block; }
+  .hidden { display: none !important; }
+  a { color: var(--cyan); }
+
+  /* ---------- landing ---------- */
+  #start {
+    position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+    padding: 16px; z-index: 20;
+    background: radial-gradient(ellipse at center, rgba(2,3,10,0.2) 0%, rgba(2,3,10,0.85) 75%);
+    -webkit-user-select: text; user-select: text;
+  }
+  .panel {
+    width: min(640px, 100%);
+    padding: 32px;
+    background: rgba(6, 10, 24, 0.78);
+    border: 1px solid rgba(62, 242, 255, 0.35);
+    box-shadow: 0 0 40px rgba(62, 242, 255, 0.15), inset 0 0 40px rgba(255, 62, 200, 0.05);
+    border-radius: 14px;
+    backdrop-filter: blur(6px);
+  }
+  h1 {
+    font-family: Orbitron, sans-serif; font-weight: 900;
+    font-size: clamp(32px, 8vw, 56px); margin: 0 0 4px; letter-spacing: 0.06em;
+    background: linear-gradient(90deg, var(--cyan), #8f7bff 50%, var(--pink));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 0 18px rgba(62, 242, 255, 0.45));
+  }
+  .tagline { color: var(--dim); margin: 0 0 24px; line-height: 1.5; font-size: 14px; }
+  form { display: flex; gap: 8px; flex-wrap: wrap; }
+  input[type=url] {
+    flex: 1 1 260px; min-width: 0;
+    background: rgba(0,0,0,0.5); color: var(--text);
+    border: 1px solid rgba(62, 242, 255, 0.4); border-radius: 8px;
+    padding: 12px 14px; font: inherit; font-size: 14px; outline: none;
+  }
+  input[type=url]:focus { border-color: var(--cyan); box-shadow: 0 0 12px rgba(62,242,255,0.35); }
+  button, .btn {
+    font-family: Orbitron, sans-serif; font-weight: 700; letter-spacing: 0.08em;
+    background: linear-gradient(90deg, var(--cyan), #8f7bff);
+    color: #020310; border: 0; border-radius: 8px; padding: 12px 18px; cursor: pointer; font-size: 14px;
+  }
+  button:hover { filter: brightness(1.15); }
+  .alt { margin-top: 18px; font-size: 13px; color: var(--dim); line-height: 1.8; }
+  .alt button {
+    background: none; color: var(--cyan); border: 1px solid rgba(62,242,255,0.4);
+    padding: 4px 10px; font-size: 12px; font-family: inherit; font-weight: 400; letter-spacing: 0;
+  }
+  #error {
+    margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 13px; line-height: 1.5;
+    background: rgba(255, 40, 90, 0.12); border: 1px solid rgba(255, 40, 90, 0.5); color: #ffb3c6;
+    white-space: pre-wrap;
+  }
+  #progress { margin-top: 18px; }
+  #progress .bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; }
+  #progress .fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, var(--cyan), var(--pink));
+    box-shadow: 0 0 12px var(--cyan);
+    transition: width 0.15s;
+  }
+  #progress .label { font-size: 12px; color: var(--dim); margin-top: 8px; }
+
+  /* ---------- in-world HUD ---------- */
+  #hud { position: fixed; left: 16px; top: 14px; right: 16px; pointer-events: none; z-index: 5; text-shadow: 0 0 4px #000, 0 0 10px #000; }
+  #hud::before {
+    content: ""; position: fixed; left: 0; top: 0; width: min(560px, 90vw); height: 150px; z-index: -1;
+    background: radial-gradient(ellipse at top left, rgba(2,3,10,0.75) 0%, rgba(2,3,10,0) 70%);
+  }
+  #brand { font-family: Orbitron, sans-serif; font-weight: 900; font-size: 13px; letter-spacing: 0.25em; color: var(--cyan); text-shadow: 0 0 10px var(--cyan); }
+  #brand span { color: var(--dim); letter-spacing: 0.05em; font-family: "JetBrains Mono", monospace; font-weight: 400; margin-left: 10px; }
+  #where { font-family: Orbitron, sans-serif; font-weight: 700; font-size: clamp(16px, 3vw, 24px); margin-top: 6px; text-shadow: 0 0 14px currentColor; }
+  #whereSub { font-size: 12px; color: var(--dim); margin-top: 2px; max-width: 70vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #trail { margin-top: 8px; font-size: 11px; color: var(--dim); display: flex; flex-wrap: wrap; gap: 4px; max-width: 80vw; }
+  #trail span { opacity: 0.85; white-space: nowrap; }
+  #trail span.cur { opacity: 1; }
+  #help {
+    position: fixed; right: 16px; bottom: 14px; z-index: 5; pointer-events: none;
+    font-size: 11px; color: var(--dim); text-align: right; line-height: 1.7;
+    text-shadow: 0 0 4px #000, 0 0 8px #000;
+  }
+  #help b { color: var(--text); font-weight: 700; }
+  #crosshair {
+    position: fixed; left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px;
+    pointer-events: none; z-index: 5; transition: transform 0.15s;
+  }
+  #crosshair::before, #crosshair::after {
+    content: ""; position: absolute; background: rgba(216, 246, 255, 0.85); box-shadow: 0 0 6px var(--cyan);
+  }
+  #crosshair::before { left: 8px; top: 2px; width: 2px; height: 14px; }
+  #crosshair::after { top: 8px; left: 2px; height: 2px; width: 14px; }
+  #crosshair.active { transform: rotate(45deg) scale(1.4); }
+  #crosshair.active::before, #crosshair.active::after { background: var(--pink); box-shadow: 0 0 8px var(--pink); }
+  #tooltip {
+    position: fixed; left: 50%; top: calc(50% + 28px); transform: translateX(-50%);
+    padding: 6px 12px; border-radius: 6px; font-size: 13px; z-index: 5; pointer-events: none;
+    background: rgba(4, 6, 16, 0.75); border: 1px solid rgba(255, 62, 200, 0.6); color: #fff;
+    white-space: nowrap; max-width: 90vw; overflow: hidden; text-overflow: ellipsis;
+    box-shadow: 0 0 16px rgba(255, 62, 200, 0.3);
+  }
+  #tooltip kbd { font-family: inherit; color: var(--pink); }
+  #flash { position: fixed; inset: 0; pointer-events: none; opacity: 0; z-index: 8; }
+  #enter {
+    position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center;
+    background: rgba(2, 3, 10, 0.55); cursor: pointer; padding: 16px;
+  }
+  #enter .panel { text-align: center; }
+  #enter h2 { font-family: Orbitron, sans-serif; margin: 0 0 18px; letter-spacing: 0.12em; color: var(--cyan); text-shadow: 0 0 16px var(--cyan); }
+  #enter .keys { display: grid; grid-template-columns: auto auto; gap: 6px 18px; justify-content: center; text-align: left; font-size: 13px; color: var(--dim); }
+  #enter .keys b { color: var(--text); text-align: right; }
+
+  /* ---------- touch joystick ---------- */
+  #joy {
+    position: fixed; left: 24px; bottom: 24px; width: 120px; height: 120px; border-radius: 50%; z-index: 6;
+    border: 1px solid rgba(62, 242, 255, 0.4); background: rgba(62, 242, 255, 0.06);
+  }
+  #joy div {
+    position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; margin: -24px 0 0 -24px; border-radius: 50%;
+    background: rgba(62, 242, 255, 0.35); box-shadow: 0 0 16px var(--cyan);
+  }
+
+  /* ---------- row inspector modal ---------- */
+  #modal {
+    position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center;
+    background: rgba(2, 3, 10, 0.7); padding: 16px;
+    -webkit-user-select: text; user-select: text;
+  }
+  #modal .panel { width: min(900px, 100%); max-height: 88vh; display: flex; flex-direction: column; padding: 0; }
+  #modal header { display: flex; align-items: center; gap: 12px; padding: 18px 22px; border-bottom: 1px solid rgba(62,242,255,0.2); }
+  #modal header h3 { flex: 1; margin: 0; font-family: Orbitron, sans-serif; font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #modal .body { overflow: auto; padding: 8px 22px 22px; }
+  #modal table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  #modal td { border-bottom: 1px solid rgba(255,255,255,0.06); padding: 8px 6px; vertical-align: top; }
+  #modal td.k { color: var(--dim); white-space: nowrap; width: 1%; padding-right: 18px; }
+  #modal td.v { white-space: pre-wrap; word-break: break-word; }
+  #modal td.v .null { color: var(--dim); font-style: italic; }
+  #modal .fk { margin: 4px 0 0 10px; display: inline-block; }
+  #modal .fk button { font-size: 11px; padding: 4px 10px; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+
+<div id="start">
+  <div class="panel">
+    <h1>DATASPLORE</h1>
+    <p class="tagline">Walk through a SQLite database in first person. Tables are portals, rows are rooms, and foreign keys are doorways to the rows they point at.</p>
+    <form id="urlForm">
+      <input type="url" id="urlInput" placeholder="https://example.com/database.db" required>
+      <button type="submit">EXPLORE</button>
+    </form>
+    <div class="alt">
+      Try the <a href="?url=https://datasette.io/content.db">datasette.io content database</a><br>
+      The file must be served with CORS headers (<code>Access-Control-Allow-Origin</code>).<br>
+      Or open a local file: <button type="button" id="fileBtn">choose .db file</button>
+      <input type="file" id="fileInput" accept=".db,.sqlite,.sqlite3,.db3,application/x-sqlite3,application/vnd.sqlite3" class="hidden">
+      — or drop one anywhere on this page.
+    </div>
+    <div id="progress" class="hidden"><div class="bar"><div class="fill"></div></div><div class="label"></div></div>
+    <div id="error" class="hidden"></div>
+  </div>
+</div>
+
+<div id="enter" class="hidden">
+  <div class="panel">
+    <h2>CLICK TO ENTER</h2>
+    <div class="keys">
+      <b>W A S D</b><span>move</span>
+      <b>mouse</b><span>look around</span>
+      <b>shift</b><span>run</span>
+      <b>space</b><span>jump</span>
+      <b>click / E</b><span>open row · enter portal</span>
+      <b>backspace</b><span>go back</span>
+      <b>H</b><span>return to the lobby</span>
+      <b>M</b><span>toggle sound</span>
+      <b>esc</b><span>release the mouse</span>
+    </div>
+  </div>
+</div>
+
+<div id="hud" class="hidden">
+  <div id="brand">DATASPLORE<span id="dbname"></span></div>
+  <div id="where"></div>
+  <div id="whereSub"></div>
+  <div id="trail"></div>
+</div>
+<div id="help" class="hidden">
+  <b>WASD</b> move · <b>shift</b> run · <b>space</b> jump<br>
+  <b>click/E</b> interact · <b>backspace</b> back · <b>H</b> lobby · <b>M</b> sound
+</div>
+<div id="crosshair" class="hidden"></div>
+<div id="tooltip" class="hidden"></div>
+<div id="joy" class="hidden"><div></div></div>
+<div id="flash"></div>
+<div id="modal" class="hidden">
+  <div class="panel">
+    <header><h3></h3><button type="button" id="modalClose">CLOSE</button></header>
+    <div class="body"></div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+const $ = (s) => document.querySelector(s);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const sameArr = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+const easeOut = (k) => 1 - Math.pow(1 - k, 3);
+const isTouch = matchMedia('(pointer: coarse)').matches;
+
+/* =====================================================================
+   Renderer, scene, post-processing
+   ===================================================================== */
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.body.prepend(renderer.domElement);
+const maxAniso = renderer.capabilities.getMaxAnisotropy();
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x02030a);
+scene.fog = new THREE.FogExp2(0x02030a, 0.02);
+
+const BASE_FOV = 72;
+const camera = new THREE.PerspectiveCamera(BASE_FOV, innerWidth / innerHeight, 0.05, 1200);
+camera.rotation.order = 'YXZ';
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.7, 0.4, 0.82);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  composer.setSize(innerWidth, innerHeight);
+});
+
+const clock = new THREE.Clock();
+const shared = { time: { value: 0 } };
+
+/* ---------- persistent world: grid floor, stars, drifting dust ---------- */
+const floorMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uTime: shared.time,
+    uColor: { value: new THREE.Color(0x3ef2ff) },
+    uCam: { value: new THREE.Vector3() },
+    uPulseStart: { value: -100 },
+    uPulseCenter: { value: new THREE.Vector2() },
+  },
+  vertexShader: /* glsl */`
+    varying vec3 vW;
+    void main() {
+      vec4 w = modelMatrix * vec4(position, 1.0);
+      vW = w.xyz;
+      gl_Position = projectionMatrix * viewMatrix * w;
+    }`,
+  fragmentShader: /* glsl */`
+    uniform vec3 uColor; uniform float uTime; uniform vec3 uCam;
+    uniform float uPulseStart; uniform vec2 uPulseCenter;
+    varying vec3 vW;
+    float gridLine(vec2 p, float s, float w) {
+      vec2 c = p / s;
+      vec2 g = abs(fract(c - 0.5) - 0.5) / (fwidth(c) * w);
+      return 1.0 - min(min(g.x, g.y), 1.0);
+    }
+    void main() {
+      float d = length(vW.xz - uCam.xz);
+      float minor = gridLine(vW.xz, 1.0, 1.0);
+      float major = gridLine(vW.xz, 4.0, 1.6);
+      float fade = exp(-d * 0.04);
+      // ripple that expands from where you arrived
+      float pr = (uTime - uPulseStart) * 14.0;
+      float pd = length(vW.xz - uPulseCenter);
+      float pulse = smoothstep(2.5, 0.0, abs(pd - pr)) * exp(-pr * 0.04);
+      // slow ambient scanline sweeping across the floor
+      float scan = smoothstep(1.2, 0.0, abs(mod(vW.z * 0.5 + uTime * 2.0, 40.0) - 20.0)) * 0.25;
+      vec3 col = vec3(0.004, 0.006, 0.02);
+      col += uColor * (minor * 0.14 + major * 0.5) * fade;
+      col += uColor * (pulse * 1.4 + scan) * (0.2 + major + minor * 0.5) * fade;
+      col += uColor * 0.06 * exp(-d * 0.35);
+      gl_FragColor = vec4(col, 1.0);
+    }`,
+});
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(800, 800), floorMat);
+floor.rotation.x = -Math.PI / 2;
+scene.add(floor);
+
+function makeStars() {
+  const n = 3000, pos = new Float32Array(n * 3), col = new Float32Array(n * 3);
+  const c = new THREE.Color();
+  for (let i = 0; i < n; i++) {
+    const u = Math.random() * 2 - 1, th = Math.random() * Math.PI * 2;
+    const y = Math.abs(u) * 0.95 + 0.05, r = Math.sqrt(1 - y * y);
+    pos.set([Math.cos(th) * r * 500, y * 500, Math.sin(th) * r * 500], i * 3);
+    c.setHSL(0.5 + Math.random() * 0.4, 0.6, 0.6 + Math.random() * 0.4);
+    col.set([c.r, c.g, c.b], i * 3);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return new THREE.Points(g, new THREE.PointsMaterial({ size: 1.6, sizeAttenuation: false, vertexColors: true, fog: false }));
+}
+const stars = makeStars();
+scene.add(stars);
+
+const dustMat = new THREE.PointsMaterial({
+  size: 0.06, color: 0x3ef2ff, transparent: true, opacity: 0.7,
+  blending: THREE.AdditiveBlending, depthWrite: false,
+});
+const dust = (() => {
+  const n = 1500, pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) pos.set([(Math.random() - 0.5) * 90, Math.random() * 9, (Math.random() - 0.5) * 90], i * 3);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  return new THREE.Points(g, dustMat);
+})();
+scene.add(dust);
+
+function setWorldColor(color) {
+  floorMat.uniforms.uColor.value.copy(color).multiplyScalar(0.85);
+  dustMat.color.copy(color);
+}
+
+/* =====================================================================
+   Colors and text-on-canvas helpers
+   ===================================================================== */
+function hashStr(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+const colorCache = new Map();
+function tableColor(name) {
+  if (!colorCache.has(name)) {
+    const h = (hashStr(name) % 1000) / 1000;
+    colorCache.set(name, new THREE.Color().setHSL(h, 0.9, 0.58));
+  }
+  return colorCache.get(name);
+}
+const cssColor = (c, a = 1) => `rgba(${Math.round(c.r * 255)},${Math.round(c.g * 255)},${Math.round(c.b * 255)},${a})`;
+// THREE.Color stores linear values; canvas wants sRGB.
+const css = (c, a = 1) => cssColor(c.clone().convertLinearToSRGB(), a);
+
+const FONT_TITLE = 'Orbitron, sans-serif';
+const FONT_MONO = '"JetBrains Mono", ui-monospace, monospace';
+
+function fitText(ctx, text, maxW) {
+  if (ctx.measureText(text).width <= maxW) return text;
+  let lo = 0, hi = text.length;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (ctx.measureText(text.slice(0, mid) + '…').width <= maxW) lo = mid; else hi = mid - 1;
+  }
+  return text.slice(0, lo) + '…';
+}
+
+function wrapText(ctx, text, maxW, maxLines) {
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  const push = (l) => { lines.push(l); return lines.length >= maxLines; };
+  for (let i = 0; i < words.length; i++) {
+    let w = words[i];
+    const test = line ? line + ' ' + w : w;
+    if (ctx.measureText(test).width <= maxW) { line = test; continue; }
+    if (line && push(line)) { line = null; break; }
+    line = '';
+    // hard-break words that are longer than a whole line
+    while (ctx.measureText(w).width > maxW) {
+      let n = w.length;
+      while (n > 1 && ctx.measureText(w.slice(0, n)).width > maxW) n = Math.floor(n * 0.85);
+      if (push(w.slice(0, n))) { w = null; break; }
+      w = w.slice(n);
+    }
+    if (w === null) { line = null; break; }
+    line = w;
+  }
+  if (line) lines.push(line);
+  const truncated = line === null || lines.length > maxLines;
+  lines.length = Math.min(lines.length, maxLines);
+  if (truncated && lines.length) lines[lines.length - 1] = fitText(ctx, lines[lines.length - 1] + '…', maxW);
+  return lines;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// A flat plane (facing +z) textured with whatever `draw` paints onto a canvas.
+function textPlane(w, h, ppu, draw, { opacity = 1 } = {}) {
+  const cw = Math.min(4096, Math.round(w * ppu)), ch = Math.min(4096, Math.round(h * ppu));
+  const canvas = document.createElement('canvas');
+  canvas.width = cw; canvas.height = ch;
+  const ctx = canvas.getContext('2d');
+  draw(ctx, cw, ch);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = maxAniso;
+  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide });
+  return new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+}
+
+function signPlane(title, sub, color, { w = 3, h = 0.9, titleSize = 0.42, subSize = 0.2 } = {}) {
+  return textPlane(w, h, 200, (ctx, W, H) => {
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    let ts = titleSize * 200;
+    ctx.font = `700 ${ts}px ${FONT_TITLE}`;
+    while (ctx.measureText(title).width > W * 0.95 && ts > 18) { ts -= 2; ctx.font = `700 ${ts}px ${FONT_TITLE}`; }
+    ctx.shadowColor = css(color);
+    ctx.shadowBlur = 16;
+    ctx.fillStyle = '#e6f4ff';
+    const ty = sub ? H * 0.38 : H / 2;
+    ctx.fillText(fitText(ctx, title, W * 0.96), W / 2, ty);
+    if (sub) {
+      ctx.shadowBlur = 0;
+      ctx.font = `400 ${subSize * 200}px ${FONT_MONO}`;
+      ctx.fillStyle = css(color.clone().lerp(new THREE.Color(1, 1, 1), 0.45));
+      ctx.fillText(fitText(ctx, sub, W * 0.96), W / 2, H * 0.78);
+    }
+  });
+}
+
+/* =====================================================================
+   Database + schema introspection
+   ===================================================================== */
+let db = null;
+let schema = null;
+let dbName = '';
+
+const q = (id) => '"' + String(id).replace(/"/g, '""') + '"';
+const qc = (c) => (c === 'rowid' ? 'rowid' : q(c));
+
+function all(sql, params = []) {
+  const st = db.prepare(sql);
+  try {
+    st.bind(params);
+    const rows = [];
+    while (st.step()) rows.push(st.getAsObject());
+    return rows;
+  } finally { st.free(); }
+}
+
+const LABEL_CANDIDATES = ['title', 'name', 'full_name', 'display_name', 'login', 'username', 'label',
+  'tag_name', 'headline', 'subject', 'caption', 'slug', 'filename', 'path', 'email', 'summary', 'version', 'key', 'description'];
+
+function loadSchema() {
+  const objs = all(`select name, type, sql from sqlite_master
+                    where type = 'table' and name not like 'sqlite\\_%' escape '\\' order by name`);
+  const virtual = objs.filter((o) => /create\s+virtual\s+table/i.test(o.sql || ''));
+  const hidden = new Set(virtual.map((v) => v.name));
+  // Shadow tables used by FTS / rtree virtual tables are implementation detail
+  for (const v of virtual) {
+    for (const s of ['_data', '_idx', '_docsize', '_config', '_content', '_segments', '_segdir', '_stat', '_node', '_parent', '_rowid']) {
+      hidden.add(v.name + s);
+    }
+  }
+  const tables = new Map();
+  for (const o of objs) {
+    if (hidden.has(o.name)) continue;
+    const columns = all('select * from pragma_table_info(?)', [o.name]);
+    const pk = columns.filter((c) => c.pk).sort((a, b) => a.pk - b.pk).map((c) => c.name);
+    const withoutRowid = /without\s+rowid/i.test(o.sql || '');
+    const keyCols = pk.length ? pk : ['rowid'];
+    const lower = new Map(columns.map((c) => [c.name.toLowerCase(), c.name]));
+    let labelCols = LABEL_CANDIDATES.filter((n) => lower.has(n)).map((n) => lower.get(n));
+    if (!labelCols.length) {
+      const txt = columns.find((c) => /char|text|clob/i.test(c.type || '') && !c.pk);
+      if (txt) labelCols = [txt.name];
+    }
+    let count = 0;
+    try { count = all(`select count(*) as n from ${q(o.name)}`)[0].n; } catch (e) { /* ignore */ }
+    const fkRows = all('select * from pragma_foreign_key_list(?)', [o.name]);
+    const byId = new Map();
+    for (const r of fkRows) {
+      if (!byId.has(r.id)) byId.set(r.id, { table: r.table, from: [], to: [] });
+      byId.get(r.id).from[r.seq] = r.from;
+      byId.get(r.id).to[r.seq] = r.to;
+    }
+    tables.set(o.name, {
+      name: o.name, sql: o.sql, columns, pk, keyCols, withoutRowid,
+      rowidKey: keyCols[0] === 'rowid' && !withoutRowid,
+      labelCols, count, fks: [...byId.values()], incoming: [],
+      color: tableColor(o.name),
+    });
+  }
+  // Resolve implicit "references table" (no column) to that table's primary key, drop dangling FKs
+  for (const t of tables.values()) {
+    t.fks = t.fks.filter((f) => {
+      const target = tables.get(f.table);
+      if (!target) return false;
+      if (f.to.some((c) => c == null)) f.to = target.keyCols.slice(0, f.from.length);
+      return true;
+    });
+    for (const f of t.fks) tables.get(f.table).incoming.push({ table: t.name, from: f.from, to: f.to });
+  }
+  const totalRows = [...tables.values()].reduce((s, t) => s + t.count, 0);
+  const fkCount = [...tables.values()].reduce((s, t) => s + t.fks.length, 0);
+  return { tables, list: [...tables.values()], totalRows, fkCount };
+}
+
+function selectSql(t) {
+  return `select ${t.rowidKey ? 'rowid as "__rowid__", ' : ''}* from ${q(t.name)}`;
+}
+const keyOf = (t, row) => t.keyCols.map((c) => (c === 'rowid' ? row.__rowid__ : row[c]));
+const whereFor = (cols) => cols.map((c) => `${qc(c)} = ?`).join(' and ');
+const orderFor = (t) => t.keyCols.map(qc).join(', ');
+const keyText = (vals) => '#' + vals.map((v) => (v == null ? 'null' : String(v))).join(', ');
+
+function fmt(v, max = 400) {
+  if (v == null) return '∅ null';
+  if (v instanceof Uint8Array) return `<blob ${v.length.toLocaleString()} bytes>`;
+  const s = String(v).replace(/\s+/g, ' ').trim();
+  return s.length > max ? s.slice(0, max) + '…' : s;
+}
+
+function rowLabel(t, row) {
+  for (const c of t.labelCols) {
+    const v = row[c];
+    if (v != null && !(v instanceof Uint8Array) && String(v).trim()) return fmt(v, 90);
+  }
+  return keyText(keyOf(t, row));
+}
+
+const findCache = new Map();
+function findRow(tableName, cols, vals) {
+  const ck = tableName + '\u0000' + cols.join('\u0000') + '\u0000' + JSON.stringify(vals);
+  if (findCache.has(ck)) return findCache.get(ck);
+  const t = schema.tables.get(tableName);
+  let res = null;
+  if (t && vals.every((v) => v != null)) {
+    const r = all(`${selectSql(t)} where ${whereFor(cols)} limit 1`, vals)[0];
+    if (r) res = { key: keyOf(t, r), label: rowLabel(t, r), row: r };
+  }
+  findCache.set(ck, res);
+  return res;
+}
+
+function fkValueFor(t, row, colName) {
+  const fk = t.fks.find((f) => f.from.length === 1 && f.from[0] === colName);
+  if (!fk || row[colName] == null) return null;
+  const target = findRow(fk.table, fk.to, [row[colName]]);
+  return { fk, target };
+}
+
+const IMAGE_RE = /^https?:\/\/\S*?(\.(png|jpe?g|gif|webp)(\?\S*)?$|avatars\.githubusercontent\.com\/\S+|opengraph\.githubassets\.com\/\S+|repository-images\.githubusercontent\.com\/\S+)/i;
+function findImage(row) {
+  for (const v of Object.values(row)) if (typeof v === 'string' && IMAGE_RE.test(v.trim())) return v.trim();
+  return null;
+}
+
+/* =====================================================================
+   Locations (what room you're in) <-> URL hash
+   ===================================================================== */
+// { type: 'lobby' } | { type: 'table', table, page, filter?: {cols, vals} } | { type: 'row', table, key: [...] }
+function locToHash(loc) {
+  const p = new URLSearchParams();
+  if (loc.type === 'table') {
+    p.set('table', loc.table);
+    if (loc.page) p.set('page', String(loc.page));
+    if (loc.filter) p.set('where', JSON.stringify([loc.filter.cols, loc.filter.vals]));
+  } else if (loc.type === 'row') {
+    p.set('row', loc.table);
+    p.set('key', JSON.stringify(loc.key));
+  }
+  return p.toString();
+}
+function hashToLoc(hash) {
+  const p = new URLSearchParams(hash.replace(/^#/, ''));
+  try {
+    if (p.has('table') && schema.tables.has(p.get('table'))) {
+      const loc = { type: 'table', table: p.get('table'), page: Math.max(0, parseInt(p.get('page') || '0', 10) || 0) };
+      if (p.has('where')) { const [cols, vals] = JSON.parse(p.get('where')); loc.filter = { cols, vals }; }
+      return loc;
+    }
+    if (p.has('row') && schema.tables.has(p.get('row'))) {
+      return { type: 'row', table: p.get('row'), key: JSON.parse(p.get('key')) };
+    }
+  } catch (e) { console.warn('Bad location hash', e); }
+  return { type: 'lobby' };
+}
+const locKey = (loc) => locToHash(loc) || 'lobby';
+const locColor = (loc) => (loc.type === 'lobby' ? new THREE.Color(0x3ef2ff) : schema.tables.get(loc.table).color);
+
+/* =====================================================================
+   Building blocks for rooms
+   ===================================================================== */
+class Room {
+  constructor() {
+    this.group = new THREE.Group();
+    this.portals = [];      // walk-through triggers
+    this.interactives = []; // meshes you can point at and click
+    this.anchors = [];      // { key, x, z, yaw } spawn points when arriving from somewhere
+    this.updaters = [];     // per-frame animation callbacks
+    this.billboards = [];   // meshes that turn to face the player
+    this.obstacles = [];    // { x, z, r } circles you can't walk through
+    this.bounds = { type: 'rect', minX: -10, maxX: 10, minZ: -10, maxZ: 10 };
+    this.spawn = { x: 0, z: 0, yaw: 0 };
+    this.color = new THREE.Color(0x3ef2ff);
+    this.title = '';
+    this.sub = '';
+    this.disposed = false;
+  }
+  add(o) { this.group.add(o); return o; }
+  dispose() {
+    this.disposed = true;
+    this.group.traverse((o) => {
+      if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
+      if (o.material) {
+        for (const m of [].concat(o.material)) {
+          if (m.userData.shared) continue;
+          if (m.map) m.map.dispose();
+          m.dispose();
+        }
+      }
+    });
+  }
+}
+
+// Neon colours get pushed past 1.0 so they cross the bloom threshold (text stays below it and stays crisp).
+// Dark hues like blue get a bigger push than bright ones like yellow, so every table glows about equally.
+function glowMat(color, opacity = 1, boost = 1.25) {
+  const max = Math.max(color.r, color.g, color.b, 1e-4);
+  const hueLum = (0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b) / max;
+  return new THREE.MeshBasicMaterial({
+    color: color.clone().multiplyScalar(boost * clamp(0.75 / hueLum, 1, 4)),
+    transparent: opacity < 1, opacity,
+    blending: opacity < 1 ? THREE.AdditiveBlending : THREE.NormalBlending,
+    depthWrite: opacity >= 1, toneMapped: false,
+  });
+}
+const boxGeo = new THREE.BoxGeometry(1, 1, 1); boxGeo.userData.shared = true;
+const packetGeo = new THREE.SphereGeometry(0.07, 10, 8); packetGeo.userData.shared = true;
+
+function box(room, w, h, d, x, y, z, mat, parent = room.group) {
+  const m = new THREE.Mesh(boxGeo, mat);
+  m.scale.set(w, h, d);
+  m.position.set(x, y, z);
+  parent.add(m);
+  return m;
+}
+
+// A straight wall from (x1,z1) to (x2,z2) with glowing trim
+function wall(room, x1, z1, x2, z2, h, color) {
+  const len = Math.hypot(x2 - x1, z2 - z1);
+  const g = new THREE.Group();
+  g.position.set((x1 + x2) / 2, 0, (z1 + z2) / 2);
+  g.rotation.y = Math.atan2(-(z2 - z1), x2 - x1);
+  const panel = new THREE.Mesh(new THREE.PlaneGeometry(len, h),
+    new THREE.MeshBasicMaterial({ color: 0x060914, side: THREE.DoubleSide }));
+  panel.position.y = h / 2;
+  g.add(panel);
+  const trim = glowMat(color);
+  const dimTrim = glowMat(color.clone().multiplyScalar(0.35));
+  box(room, len, 0.06, 0.06, 0, 0.03, 0, trim, g);
+  box(room, len, 0.05, 0.05, 0, h, 0, trim, g);
+  box(room, len, 0.025, 0.025, 0, h * 0.62, 0, dimTrim, g);
+  for (let s = -len / 2 + 2; s < len / 2 - 1; s += 4) box(room, 0.03, h, 0.03, s, h / 2, 0, dimTrim, g);
+  room.add(g);
+  return g;
+}
+
+// Data packets that stream along a curve, like light pulses down a fibre
+function addFlow(room, curve, color, { count = 3, speed = 0.25, reverse = false, size = 1 } = {}) {
+  const mat = glowMat(color.clone().multiplyScalar(1.6));
+  const packets = [];
+  for (let i = 0; i < count; i++) {
+    const m = new THREE.Mesh(packetGeo, mat);
+    m.scale.setScalar(size);
+    room.add(m);
+    packets.push({ m, off: i / count + Math.random() * 0.1 });
+  }
+  const len = curve.getLength();
+  const sp = speed * 8 / Math.max(4, len);
+  room.updaters.push((dt, t) => {
+    for (const p of packets) {
+      let u = (t * sp + p.off) % 1;
+      if (reverse) u = 1 - u;
+      curve.getPointAt(u, p.m.position);
+    }
+  });
+}
+
+function tube(room, curve, color, radius = 0.025, opacity = 0.45) {
+  const m = new THREE.Mesh(new THREE.TubeGeometry(curve, 64, radius, 6, false), glowMat(color, opacity));
+  room.add(m);
+  return m;
+}
+
+const portalVertex = /* glsl */`
+  varying vec2 vUv;
+  void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+const portalFragment = /* glsl */`
+  uniform float uTime; uniform vec3 uColor; uniform float uHover; uniform float uAspect; uniform float uDim;
+  varying vec2 vUv;
+  void main() {
+    vec2 p = vUv - 0.5; p.x *= uAspect;
+    float r = length(p);
+    float a = atan(p.y, p.x);
+    float t = uTime * (1.0 + uHover * 1.5);
+    float s1 = sin(a * 5.0 + r * 22.0 - t * 3.0) * 0.5 + 0.5;
+    float s2 = sin(a * 3.0 - r * 13.0 + t * 1.7) * 0.5 + 0.5;
+    float n = s1 * s2;
+    float core = smoothstep(0.8, 0.0, r);
+    vec3 col = uColor * (0.12 + n * core * (0.9 + uHover * 0.5));
+    col += vec3(1.0) * pow(core, 7.0) * (0.25 + uHover * 0.25);
+    float edge = smoothstep(0.4, 0.5, max(abs(vUv.x - 0.5), abs(vUv.y - 0.5)));
+    col += uColor * edge * 0.9;
+    col *= mix(1.0, 0.12, uDim);
+    gl_FragColor = vec4(col, mix(0.9, 0.55, uDim));
+  }`;
+
+/**
+ * A glowing doorway. Walk through it (or click it) to travel to `target`.
+ * yaw: direction the portal faces, i.e. the direction pointing into the room.
+ */
+function addPortal(room, { x, z, yaw, color, label, sub, target, dim = false, w = 2.4, h = 3.3, tip }) {
+  const g = new THREE.Group();
+  g.position.set(x, 0, z);
+  g.rotation.y = yaw;
+  room.add(g);
+  const frameColor = dim ? color.clone().multiplyScalar(0.25) : color;
+  const fm = glowMat(frameColor);
+  box(room, 0.14, h + 0.14, 0.14, -w / 2, (h + 0.14) / 2, 0, fm, g);
+  box(room, 0.14, h + 0.14, 0.14, w / 2, (h + 0.14) / 2, 0, fm, g);
+  box(room, w + 0.28, 0.14, 0.14, 0, h + 0.07, 0, fm, g);
+  box(room, w + 0.28, 0.04, 0.6, 0, 0.02, 0.2, glowMat(frameColor.clone().multiplyScalar(0.6)), g);
+
+  const uniforms = {
+    uTime: shared.time, uColor: { value: color.clone() }, uHover: { value: 0 },
+    uAspect: { value: w / h }, uDim: { value: dim ? 1 : 0 },
+  };
+  const inner = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.ShaderMaterial({
+    uniforms, vertexShader: portalVertex, fragmentShader: portalFragment,
+    transparent: true, depthWrite: false, side: THREE.DoubleSide,
+  }));
+  inner.position.set(0, h / 2, 0.01);
+  g.add(inner);
+
+  const sign = signPlane(label, sub, dim ? color.clone().multiplyScalar(0.5) : color, { w: Math.max(3, w + 0.8), h: 0.95 });
+  sign.position.set(0, h + 0.85, 0.05);
+  if (dim) sign.material.opacity = 0.45;
+  g.add(sign);
+
+  const normal = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+  const tangent = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+  const center = new THREE.Vector3(x, 0, z);
+  if (!dim && target) {
+    room.portals.push({ center, normal, tangent, w, target });
+    let hoverT = 0, hovering = false;
+    inner.userData = {
+      tip: tip || `Enter ${label}${sub ? ' — ' + sub : ''}`,
+      action: () => go(target),
+      hover: (on) => { hovering = on; },
+    };
+    room.interactives.push(inner);
+    room.updaters.push((dt) => {
+      hoverT += ((hovering ? 1 : 0) - hoverT) * Math.min(1, dt * 8);
+      uniforms.uHover.value = hoverT;
+    });
+    // When you come back from `target`, appear just in front of this portal, facing away from it
+    room.anchors.push({ key: locKey(target), x: x + normal.x * 2.6, z: z + normal.z * 2.6, yaw: yaw + Math.PI });
+  }
+  return { group: g, center, normal, top: new THREE.Vector3(x, h + 0.2, z) };
+}
+
+function addBillboard(room, mesh, x, y, z) {
+  mesh.position.set(x, y, z);
+  room.add(mesh);
+  room.billboards.push(mesh);
+  return mesh;
+}
+
+// A hovering, spinning wireframe crystal — the "heart" of a row room
+function addCrystal(room, color, y = 1.5, scale = 1) {
+  const g = new THREE.Group();
+  g.position.set(0, y, 0);
+  const geo = new THREE.IcosahedronGeometry(0.75 * scale, 0);
+  const solid = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: color.clone().multiplyScalar(0.18), transparent: true, opacity: 0.85 }));
+  const wire = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: color.clone().multiplyScalar(1.8), toneMapped: false }));
+  const inner = new THREE.Mesh(new THREE.OctahedronGeometry(0.28 * scale, 0), glowMat(new THREE.Color(1, 1, 1)));
+  g.add(solid, wire, inner);
+  const ringMat = glowMat(color, 0.8);
+  const rings = [0, 1].map((i) => {
+    const r = new THREE.Mesh(new THREE.TorusGeometry(1.25 * scale + i * 0.25, 0.012, 6, 96), ringMat);
+    g.add(r);
+    return r;
+  });
+  const ground = new THREE.Mesh(new THREE.RingGeometry(1.1 * scale, 1.18 * scale, 64), glowMat(color, 0.7));
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = 0.02;
+  room.add(ground);
+  room.add(g);
+  room.updaters.push((dt, t) => {
+    solid.rotation.y = wire.rotation.y = t * 0.5;
+    solid.rotation.x = wire.rotation.x = Math.sin(t * 0.3) * 0.4;
+    inner.rotation.y = -t * 1.5;
+    rings[0].rotation.set(t * 0.7, t * 0.4, 0);
+    rings[1].rotation.set(-t * 0.5, 0, t * 0.6);
+    g.position.y = y + Math.sin(t * 1.3) * 0.12;
+  });
+  room.obstacles.push({ x: 0, z: 0, r: 1.3 * scale });
+  return g;
+}
+
+/* =====================================================================
+   Room: the lobby — a ring of portals, one per table, with foreign
+   keys drawn as arcs of light between them
+   ===================================================================== */
+function buildLobby() {
+  const room = new Room();
+  const tables = schema.list;
+  const n = tables.length;
+  const R = Math.max(9, (n * 3.4) / (Math.PI * 2));
+  room.bounds = { type: 'circle', r: R };
+  room.color = new THREE.Color(0x3ef2ff);
+  room.title = dbName;
+  room.sub = `${n} tables · ${schema.totalRows.toLocaleString()} rows · ${schema.fkCount} foreign keys`;
+  room.spawn = { x: 0, z: Math.min(R - 2.5, 7), yaw: 0 };
+
+  const ring = new THREE.Mesh(new THREE.RingGeometry(R + 0.35, R + 0.45, 160), glowMat(room.color, 0.9));
+  ring.rotation.x = -Math.PI / 2; ring.position.y = 0.02;
+  room.add(ring);
+  const ring2 = new THREE.Mesh(new THREE.RingGeometry(R * 0.45, R * 0.45 + 0.05, 128), glowMat(room.color, 0.4));
+  ring2.rotation.x = -Math.PI / 2; ring2.position.y = 0.02;
+  room.add(ring2);
+
+  const portalTops = new Map();
+  tables.forEach((t, i) => {
+    const a = (i / n) * Math.PI * 2;
+    const x = Math.sin(a) * R, z = Math.cos(a) * R;
+    const links = t.fks.length + t.incoming.length;
+    const p = addPortal(room, {
+      x, z, yaw: a + Math.PI, color: t.color, label: t.name,
+      sub: `${t.count.toLocaleString()} rows${links ? ` · ${links} link${links === 1 ? '' : 's'}` : ''}`,
+      target: { type: 'table', table: t.name, page: 0 },
+      tip: `Enter table ${t.name} (${t.count.toLocaleString()} rows)`,
+    });
+    portalTops.set(t.name, { top: p.top, a });
+  });
+
+  // Foreign keys as arcs of light over the lobby, with packets flowing from child to parent
+  const pairCount = new Map();
+  for (const t of tables) {
+    for (const f of t.fks) {
+      const A = portalTops.get(t.name), B = portalTops.get(f.table);
+      const pk = [t.name, f.table].sort().join('\u0000');
+      const k = pairCount.get(pk) || 0;
+      pairCount.set(pk, k + 1);
+      let curve;
+      const lift = 1 + k * 0.18;
+      if (t.name === f.table) {
+        const tan = new THREE.Vector3(Math.cos(A.a), 0, -Math.sin(A.a));
+        const inward = A.top.clone().setY(0).multiplyScalar(0.7);
+        curve = new THREE.CubicBezierCurve3(
+          A.top.clone().addScaledVector(tan, -0.7),
+          inward.clone().addScaledVector(tan, -2).setY(8 * lift),
+          inward.clone().addScaledVector(tan, 2).setY(8 * lift),
+          A.top.clone().addScaledVector(tan, 0.7));
+      } else {
+        const d = A.top.distanceTo(B.top);
+        const h = 5 + d * 0.45 * lift;
+        curve = new THREE.CubicBezierCurve3(
+          A.top.clone(),
+          A.top.clone().multiplyScalar(0.6).setY(h),
+          B.top.clone().multiplyScalar(0.6).setY(h),
+          B.top.clone());
+      }
+      tube(room, curve, t.color, 0.03, 0.5);
+      addFlow(room, curve, t.color, { count: 4, speed: 0.6 });
+    }
+  }
+
+  // The database core in the middle: a spinning holographic cylinder stack
+  const core = new THREE.Group();
+  const coreColor = new THREE.Color(0x3ef2ff);
+  for (let i = 0; i < 3; i++) {
+    const geo = new THREE.CylinderGeometry(1.2, 1.2, 0.55, 48, 1);
+    const solid = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: coreColor.clone().multiplyScalar(0.12), transparent: true, opacity: 0.8 }));
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 30), new THREE.LineBasicMaterial({ color: coreColor.clone().multiplyScalar(2), toneMapped: false }));
+    solid.position.y = edges.position.y = 0.7 + i * 0.75;
+    core.add(solid, edges);
+  }
+  const orbit = new THREE.Group();
+  for (let i = 0; i < 3; i++) {
+    const r = new THREE.Mesh(new THREE.TorusGeometry(2 + i * 0.35, 0.015, 6, 120), glowMat(i === 1 ? new THREE.Color(0xff3ec8) : coreColor, 0.85));
+    r.rotation.x = Math.PI / 2 + (i - 1) * 0.35;
+    r.position.y = 1.45;
+    orbit.add(r);
+  }
+  core.add(orbit);
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 200, 8, 1, true), glowMat(coreColor, 0.5));
+  beam.position.y = 100;
+  core.add(beam);
+  room.add(core);
+  room.obstacles.push({ x: 0, z: 0, r: 2.4 });
+  room.updaters.push((dt, t) => {
+    core.children.forEach((c, i) => { if (c.isLineSegments) c.rotation.y = t * (0.2 + i * 0.05); });
+    orbit.rotation.y = t * 0.3;
+    orbit.children.forEach((r, i) => { r.rotation.z = t * (0.4 + i * 0.2); });
+  });
+
+  const title = signPlane(dbName, room.sub, coreColor, { w: 9, h: 1.6, titleSize: 0.75, subSize: 0.24 });
+  addBillboard(room, title, 0, 4.6, 0);
+
+  if (!n) {
+    addBillboard(room, signPlane('No tables found', 'this database is empty', new THREE.Color(0xff3e6c), { w: 6, h: 1.2 }), 0, 2.5, -5);
+  }
+  return room;
+}
+
+/* =====================================================================
+   Room: a table hall — a corridor of row cards, one page at a time
+   ===================================================================== */
+const PAGE_SIZE = 20;
+
+function drawRowCard(ctx, W, H, t, row) {
+  const c = t.color;
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, 'rgba(12,16,34,0.96)');
+  bg.addColorStop(1, 'rgba(4,6,14,0.96)');
+  roundRect(ctx, 6, 6, W - 12, H - 12, 22);
+  ctx.fillStyle = bg; ctx.fill();
+  ctx.lineWidth = 5; ctx.strokeStyle = css(c); ctx.shadowColor = css(c); ctx.shadowBlur = 18; ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = css(c, 0.18);
+  ctx.fillRect(10, 10, W - 20, 130);
+
+  ctx.textBaseline = 'top';
+  ctx.font = `700 22px ${FONT_MONO}`;
+  ctx.fillStyle = css(c);
+  ctx.fillText(fitText(ctx, `${t.name} ${keyText(keyOf(t, row))}`, W - 60), 30, 24);
+  ctx.font = `700 34px ${FONT_TITLE}`;
+  ctx.fillStyle = '#fff';
+  const titleLines = wrapText(ctx, rowLabel(t, row), W - 60, 2);
+  titleLines.forEach((l, i) => ctx.fillText(l, 30, 58 + i * 40));
+
+  let y = 162;
+  const lineH = 27;
+  for (const col of t.columns) {
+    if (y > H - 50) {
+      ctx.font = `400 18px ${FONT_MONO}`;
+      ctx.fillStyle = '#6f8aa0';
+      ctx.fillText('…', 30, y);
+      break;
+    }
+    const fkv = fkValueFor(t, row, col.name);
+    ctx.font = `400 17px ${FONT_MONO}`;
+    ctx.fillStyle = '#6f8aa0';
+    const name = fitText(ctx, col.name, 150);
+    ctx.fillText(name, 30, y + 2);
+    ctx.font = `400 19px ${FONT_MONO}`;
+    let val = fmt(row[col.name], 200);
+    if (fkv) {
+      ctx.fillStyle = css(schema.tables.get(fkv.fk.table).color.clone().lerp(new THREE.Color(1, 1, 1), 0.3));
+      val = '→ ' + (fkv.target ? fkv.target.label : val + ' (missing)');
+    } else {
+      ctx.fillStyle = row[col.name] == null ? '#4a5a6a' : '#d8f6ff';
+    }
+    ctx.fillText(fitText(ctx, val, W - 220), 190, y);
+    y += lineH;
+  }
+}
+
+function drawSchemaBoard(ctx, W, H, t) {
+  const c = t.color;
+  roundRect(ctx, 6, 6, W - 12, H - 12, 18);
+  ctx.fillStyle = 'rgba(6,9,20,0.95)'; ctx.fill();
+  ctx.lineWidth = 4; ctx.strokeStyle = css(c, 0.8); ctx.stroke();
+  ctx.textBaseline = 'top';
+  ctx.font = `700 34px ${FONT_TITLE}`;
+  ctx.fillStyle = '#fff';
+  ctx.fillText(fitText(ctx, 'SCHEMA · ' + t.name, W - 60), 30, 26);
+  let y = 84;
+  const lineH = 30;
+  const cols = t.columns;
+  const maxLines = Math.floor((H - y - 20) / lineH);
+  cols.slice(0, maxLines).forEach((col, i) => {
+    if (i === maxLines - 1 && cols.length > maxLines) {
+      ctx.fillStyle = '#6f8aa0'; ctx.font = `400 20px ${FONT_MONO}`;
+      ctx.fillText(`… ${cols.length - i} more columns`, 30, y);
+      return;
+    }
+    const fk = t.fks.find((f) => f.from.includes(col.name));
+    ctx.font = `700 21px ${FONT_MONO}`;
+    ctx.fillStyle = col.pk ? '#ffd23e' : '#d8f6ff';
+    ctx.fillText(fitText(ctx, (col.pk ? '🔑 ' : '') + col.name, W * 0.45), 30, y);
+    ctx.font = `400 19px ${FONT_MONO}`;
+    if (fk) {
+      ctx.fillStyle = css(schema.tables.get(fk.table).color);
+      ctx.fillText(fitText(ctx, `→ ${fk.table}.${fk.to[fk.from.indexOf(col.name)]}`, W * 0.5 - 40), W * 0.5, y + 2);
+    } else {
+      ctx.fillStyle = '#6f8aa0';
+      ctx.fillText(fitText(ctx, (col.type || 'any').toLowerCase(), W * 0.5 - 40), W * 0.5, y + 2);
+    }
+    y += lineH;
+  });
+}
+
+function buildTable(loc) {
+  const room = new Room();
+  const t = schema.tables.get(loc.table);
+  const filter = loc.filter;
+  const where = filter ? whereFor(filter.cols) : '';
+  const params = filter ? filter.vals : [];
+  const total = filter ? all(`select count(*) as n from ${q(t.name)} where ${where}`, params)[0].n : t.count;
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const page = clamp(loc.page || 0, 0, pages - 1);
+  const rows = all(`${selectSql(t)}${where ? ' where ' + where : ''} order by ${orderFor(t)} limit ? offset ?`,
+    [...params, PAGE_SIZE, page * PAGE_SIZE]);
+
+  room.color = t.color;
+  let refRow = null, refFk = null;
+  if (filter) {
+    refFk = t.fks.find((f) => sameArr(f.from, filter.cols));
+    if (refFk) refRow = findRow(refFk.table, refFk.to, filter.vals);
+  }
+  room.title = t.name;
+  const range = rows.length ? `rows ${(page * PAGE_SIZE + 1).toLocaleString()}–${(page * PAGE_SIZE + rows.length).toLocaleString()} of ${total.toLocaleString()}` : 'no rows';
+  room.sub = filter
+    ? `where ${filter.cols.join(', ')} = ${refRow ? refRow.label : filter.vals.join(', ')} · ${range}`
+    : range;
+
+  const W = 12, half = W / 2, spacing = 3.2;
+  const perSide = Math.max(3, Math.ceil(rows.length / 2));
+  const zStart = 4;
+  const zEnd = -1 - (perSide - 1) * spacing - 5;
+  room.bounds = { type: 'rect', minX: -half, maxX: half, minZ: zEnd, maxZ: zStart };
+  room.spawn = { x: 0, z: 1.2, yaw: 0 };
+
+  const wallH = 5.2;
+  wall(room, -half, zStart, -half, zEnd, wallH, t.color);
+  wall(room, half, zStart, half, zEnd, wallH, t.color);
+  wall(room, -half, zStart, half, zStart, wallH, t.color);
+  wall(room, -half, zEnd, half, zEnd, wallH, t.color);
+
+  // Ribs arching over the corridor
+  const ribMat = glowMat(t.color.clone().multiplyScalar(0.55));
+  for (let i = 0; i <= perSide; i++) {
+    const z = -1 + spacing / 2 - i * spacing;
+    box(room, W, 0.08, 0.08, 0, wallH + 0.6, z, ribMat);
+    box(room, 0.08, 0.6, 0.08, -half + 0.04, wallH + 0.3, z, ribMat);
+    box(room, 0.08, 0.6, 0.08, half - 0.04, wallH + 0.3, z, ribMat);
+  }
+
+  // Back portal: to the lobby, or to the row we came from if this is a filtered view
+  const backTarget = refRow ? { type: 'row', table: refFk.table, key: refRow.key } : { type: 'lobby' };
+  addPortal(room, {
+    x: 3.6, z: zStart - 0.05, yaw: Math.PI, color: refRow ? schema.tables.get(refFk.table).color : new THREE.Color(0x3ef2ff),
+    label: refRow ? `↩ ${refFk.table}` : '↩ LOBBY', sub: refRow ? refRow.label : dbName, target: backTarget,
+  });
+  if (page > 0) {
+    addPortal(room, {
+      x: -3.6, z: zStart - 0.05, yaw: Math.PI, color: t.color, label: '◀ PREVIOUS',
+      sub: `page ${page} of ${pages}`, target: { ...loc, page: page - 1 },
+    });
+  }
+  const board = textPlane(3.6, 3.6, 220, (ctx, w, h) => drawSchemaBoard(ctx, w, h, t));
+  board.position.set(0, 2.6, zStart - 0.08);
+  board.rotation.y = Math.PI;
+  room.add(board);
+
+  const title = signPlane(t.name, room.sub, t.color, { w: 9, h: 1.5, titleSize: 0.7, subSize: 0.22 });
+  title.position.set(0, wallH - 0.9, -6);
+  room.add(title);
+
+  if (page < pages - 1) {
+    addPortal(room, {
+      x: 0, z: zEnd + 0.05, yaw: 0, color: t.color, label: 'NEXT ▶',
+      sub: `page ${page + 2} of ${pages}`, target: { ...loc, page: page + 1 },
+    });
+  } else {
+    const end = signPlane(rows.length ? `— end of ${t.name} —` : `${t.name} is empty`, `${total.toLocaleString()} rows`, t.color, { w: 7, h: 1.2 });
+    end.position.set(0, 2.2, zEnd + 0.1);
+    room.add(end);
+  }
+
+  // Row cards along both walls
+  const cardW = 2.3, cardH = 2.9;
+  rows.forEach((row, i) => {
+    const side = i % 2 === 0 ? -1 : 1;
+    const idx = Math.floor(i / 2);
+    const z = -1 - idx * spacing;
+    const x = side * (half - 0.2);
+    const yaw = side < 0 ? Math.PI / 2 : -Math.PI / 2;
+    const card = textPlane(cardW, cardH, 512 / cardW, (ctx, w, h) => drawRowCard(ctx, w, h, t, row));
+    card.position.set(x, 2.05, z);
+    card.rotation.y = yaw;
+    room.add(card);
+    // floor light strip under each card
+    box(room, 0.35, 0.03, cardW, side * (half - 0.35), 0.02, z, glowMat(t.color, 0.8));
+
+    const key = keyOf(t, row);
+    const target = { type: 'row', table: t.name, key };
+    const label = rowLabel(t, row);
+    const base = card.position.clone();
+    const normal = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+    let hovering = false, h = 0;
+    card.userData = {
+      tip: `Open ${t.name} ${keyText(key)}${label !== keyText(key) ? ' — ' + label : ''}`,
+      maxDist: 10,
+      action: () => go(target),
+      hover: (on) => { hovering = on; },
+    };
+    room.interactives.push(card);
+    room.updaters.push((dt) => {
+      h += ((hovering ? 1 : 0) - h) * Math.min(1, dt * 10);
+      card.position.copy(base).addScaledVector(normal, h * 0.25);
+      card.material.color.setScalar(1 + h * 0.6);
+    });
+    room.anchors.push({ key: locKey(target), x: x + normal.x * 2.6, z, yaw: yaw });
+  });
+  return room;
+}
+
+/* =====================================================================
+   Room: a single row — its record on the front wall, foreign keys out
+   on the left, rows that point back at it on the right
+   ===================================================================== */
+function drawRecord(ctx, W, H, t, row, layout) {
+  const c = t.color;
+  roundRect(ctx, 6, 6, W - 12, H - 12, 26);
+  ctx.fillStyle = 'rgba(5,8,18,0.96)'; ctx.fill();
+  ctx.lineWidth = 6; ctx.strokeStyle = css(c); ctx.shadowColor = css(c); ctx.shadowBlur = 24; ctx.stroke();
+  ctx.shadowBlur = 0;
+  ctx.textBaseline = 'top';
+  ctx.font = `700 26px ${FONT_MONO}`;
+  ctx.fillStyle = css(c);
+  ctx.fillText(fitText(ctx, `${t.name} ${keyText(keyOf(t, row))}`, W - 80), 40, 32);
+  ctx.font = `900 54px ${FONT_TITLE}`;
+  ctx.fillStyle = '#eef8ff';
+  ctx.fillText(fitText(ctx, rowLabel(t, row), W - 80 - (layout.image ? IMG_BOX.w + 30 : 0)), 40, 70);
+  ctx.fillStyle = css(c, 0.5);
+  ctx.fillRect(40, 140, W - 80, 2);
+  const { lines, colW, top, lineH, perCol } = layout;
+  lines.forEach((ln, i) => {
+    const ci = Math.floor(i / perCol), li = i % perCol;
+    const x = 40 + ci * colW, y = top + li * lineH;
+    if (ln.name) {
+      ctx.font = `400 24px ${FONT_MONO}`;
+      ctx.fillStyle = '#7f9ab0';
+      ctx.fillText(fitText(ctx, ln.name, 250), x, y + 3);
+    }
+    ctx.font = ln.more ? `italic 400 24px ${FONT_MONO}` : `400 27px ${FONT_MONO}`;
+    ctx.fillStyle = ln.color || '#d8f6ff';
+    ctx.fillText(ln.text, x + 270, y);
+  });
+}
+
+const IMG_BOX = { w: 380, h: 116, top: 18 };
+
+// Paint a (CORS-enabled) picture into the top-right corner of the record panel once it loads
+function addRecordImage(room, mesh, url, color) {
+  const im = new Image();
+  im.crossOrigin = 'anonymous';
+  im.onload = () => {
+    if (room.disposed) return;
+    const canvas = mesh.material.map.image;
+    const ctx = canvas.getContext('2d');
+    const scale = Math.min(IMG_BOX.w / im.width, IMG_BOX.h / im.height);
+    const w = im.width * scale, h = im.height * scale;
+    const x = canvas.width - 40 - w, y = IMG_BOX.top + (IMG_BOX.h - h) / 2;
+    ctx.save();
+    roundRect(ctx, x, y, w, h, 12);
+    ctx.clip();
+    ctx.drawImage(im, x, y, w, h);
+    ctx.restore();
+    roundRect(ctx, x, y, w, h, 12);
+    ctx.lineWidth = 3; ctx.strokeStyle = css(color); ctx.stroke();
+    mesh.material.map.needsUpdate = true;
+  };
+  im.src = url;
+}
+
+function layoutRecord(t, row) {
+  const ctx = document.createElement('canvas').getContext('2d');
+  ctx.font = `400 27px ${FONT_MONO}`;
+  const colW = 1000, valW = colW - 300, lineH = 36, top = 168, maxH = 1600;
+  const perCol = Math.floor((maxH - top - 30) / lineH);
+  const maxCols = 3;
+  const lines = [];
+  for (const col of t.columns) {
+    const v = row[col.name];
+    const fkv = fkValueFor(t, row, col.name);
+    const wrapped = wrapText(ctx, fmt(v, 1200), valW, fkv ? 1 : 4);
+    wrapped.forEach((text, i) => lines.push({ name: i === 0 ? col.name : null, text, color: v == null ? '#4a5a6a' : null }));
+    if (fkv) {
+      const tc = schema.tables.get(fkv.fk.table).color.clone().lerp(new THREE.Color(1, 1, 1), 0.25);
+      lines.push({ name: null, text: fitText(ctx, `→ ${fkv.fk.table}: ${fkv.target ? fkv.target.label : 'missing'}`, valW), color: css(tc) });
+    }
+  }
+  const capacity = perCol * maxCols;
+  if (lines.length > capacity) {
+    lines.length = capacity - 1;
+    lines.push({ name: null, text: 'more… click to inspect the full row', color: '#ff3ec8', more: true });
+  }
+  const cols = Math.max(1, Math.ceil(lines.length / perCol));
+  // Short records get a shorter canvas drawn at a larger scale, so they're easy to read from afar
+  const H = cols === 1 ? Math.max(640, top + lines.length * lineH + 50) : maxH;
+  const ppu = cols === 1 ? 190 : maxH / 5.6;
+  return { lines, colW, top, lineH, perCol, W: cols * colW + 60, H, ppu, image: findImage(row) };
+}
+
+function buildRow(loc) {
+  const room = new Room();
+  const t = schema.tables.get(loc.table);
+  room.color = t.color;
+  const row = t.keyCols.length === loc.key.length
+    ? all(`${selectSql(t)} where ${whereFor(t.keyCols)} limit 1`, loc.key)[0]
+    : null;
+
+  if (!row) {
+    room.title = `${t.name} ${keyText(loc.key)}`;
+    room.sub = 'row not found';
+    room.bounds = { type: 'rect', minX: -6, maxX: 6, minZ: -6, maxZ: 6 };
+    room.spawn = { x: 0, z: 3, yaw: 0 };
+    wall(room, -6, -6, 6, -6, 5, t.color);
+    addBillboard(room, signPlane('ROW NOT FOUND', `${t.name} ${keyText(loc.key)}`, new THREE.Color(0xff3e6c), { w: 7, h: 1.4 }), 0, 2.5, -3);
+    addPortal(room, { x: 0, z: 6, yaw: Math.PI, color: t.color, label: `▤ ${t.name}`, sub: 'all rows', target: { type: 'table', table: t.name, page: 0 } });
+    return room;
+  }
+
+  const label = rowLabel(t, row);
+  room.title = label;
+  room.sub = `${t.name} ${keyText(loc.key)}`;
+  room.row = row;
+  room.table = t;
+
+  // Outgoing: this row's foreign keys
+  const out = t.fks.map((f) => {
+    const vals = f.from.map((c) => row[c]);
+    const target = findRow(f.table, f.to, vals);
+    const tc = schema.tables.get(f.table).color;
+    const lbl = `${f.from.join(', ')} → ${f.table}`;
+    if (vals.some((v) => v == null)) return { label: lbl, sub: 'null', color: tc, dim: true };
+    if (!target) return { label: lbl, sub: `${vals.join(', ')} · missing`, color: tc, dim: true };
+    return {
+      label: lbl, sub: target.label, color: tc,
+      target: { type: 'row', table: f.table, key: target.key },
+      tip: `Follow ${f.from.join(', ')} → ${f.table} ${keyText(target.key)} — ${target.label}`,
+    };
+  });
+
+  // Incoming: rows elsewhere whose foreign keys point at this row
+  const inc = t.incoming.map((r) => {
+    const vals = r.to.map((c) => row[c]);
+    const st = schema.tables.get(r.table);
+    const lbl = `${r.table}.${r.from.join(', ')}`;
+    if (vals.some((v) => v == null)) return { label: lbl, sub: '0 rows', color: st.color, dim: true };
+    const n = all(`select count(*) as n from ${q(r.table)} where ${whereFor(r.from)}`, vals)[0].n;
+    if (n === 0) return { label: lbl, sub: '0 rows', color: st.color, dim: true };
+    if (n === 1) {
+      const one = findRow(r.table, r.from, vals);
+      return {
+        label: lbl, sub: one.label, color: st.color, count: 1,
+        target: { type: 'row', table: r.table, key: one.key },
+        tip: `Follow ${r.table}.${r.from.join(', ')} ← the one row pointing here — ${one.label}`,
+      };
+    }
+    return {
+      label: lbl, sub: `${n.toLocaleString()} rows`, color: st.color, count: n,
+      target: { type: 'table', table: r.table, page: 0, filter: { cols: r.from, vals } },
+      tip: `Enter ${n.toLocaleString()} ${r.table} rows where ${r.from.join(', ')} = this row`,
+    };
+  });
+  // Hide dead doors if there are lots of them
+  const incShown = inc.length > 8 ? inc.filter((d) => !d.dim) : inc;
+
+  const layout = layoutRecord(t, row);
+  const panelH = layout.H / layout.ppu;
+  const panelW = layout.W / layout.ppu;
+  const halfW = Math.max(8, panelW / 2 + 1.5);
+  const spacing = 3.4;
+  const slots = Math.max(out.length, incShown.length, 1);
+  const D = Math.max(16, slots * spacing + 8);
+  const zF = -D / 2, zB = D / 2;
+  room.bounds = { type: 'rect', minX: -halfW, maxX: halfW, minZ: zF, maxZ: zB };
+  room.spawn = { x: 0, z: zB - 3, yaw: 0 };
+
+  const wallH = 8.2;
+  wall(room, -halfW, zF, halfW, zF, wallH, t.color);
+  wall(room, -halfW, zB, halfW, zB, wallH, t.color);
+  wall(room, -halfW, zF, -halfW, zB, wallH, t.color);
+  wall(room, halfW, zF, halfW, zB, wallH, t.color);
+
+  const record = textPlane(panelW, panelH, layout.ppu, (ctx, w, h) => drawRecord(ctx, w, h, t, row, layout));
+  record.position.set(0, panelH / 2 + 1.7, zF + 0.1);
+  room.add(record);
+  if (layout.image) addRecordImage(room, record, layout.image, t.color);
+  let recHover = false, rh = 0;
+  record.userData = { tip: 'Inspect the full row', maxDist: 12, action: () => openInspector(t, row), hover: (on) => { recHover = on; } };
+  room.interactives.push(record);
+  room.updaters.push((dt) => {
+    rh += ((recHover ? 1 : 0) - rh) * Math.min(1, dt * 10);
+    record.material.color.setScalar(1 + rh * 0.25);
+  });
+
+  addCrystal(room, t.color, 1.2, 0.85);
+
+  // Section signs
+  const sOut = signPlane('REFERENCES →', `${out.length} foreign key${out.length === 1 ? '' : 's'}`, t.color, { w: 6, h: 1.1, titleSize: 0.45 });
+  sOut.position.set(-halfW + 0.1, 5.7, 0);
+  sOut.rotation.y = Math.PI / 2;
+  room.add(sOut);
+  const sIn = signPlane('← REFERENCED BY', `${inc.filter((d) => !d.dim).length} of ${inc.length} relations`, t.color, { w: 6, h: 1.1, titleSize: 0.45 });
+  sIn.position.set(halfW - 0.1, 5.7, 0);
+  sIn.rotation.y = -Math.PI / 2;
+  room.add(sIn);
+
+  const corePos = new THREE.Vector3(0, 1.2, 0);
+  const placeDoors = (doors, side) => {
+    doors.forEach((d, i) => {
+      const z = (i - (doors.length - 1) / 2) * spacing;
+      const x = side * (halfW - 0.05);
+      addPortal(room, { x, z, yaw: side < 0 ? Math.PI / 2 : -Math.PI / 2, ...d });
+      if (d.dim) return;
+      // light conduits from the crystal to each live doorway
+      const end = new THREE.Vector3(x - side * 0.3, 1.65, z);
+      const curve = new THREE.CubicBezierCurve3(corePos.clone(), new THREE.Vector3(side * 2.5, 0.25, z * 0.3),
+        new THREE.Vector3(x - side * 3, 0.25, z), end);
+      tube(room, curve, d.color, 0.02, 0.4);
+      const count = d.count ? clamp(Math.round(Math.log2(d.count + 1) * 1.5), 2, 10) : 3;
+      addFlow(room, curve, d.color, { count, speed: 0.5, reverse: side > 0 });
+    });
+  };
+  placeDoors(out, -1);
+  placeDoors(incShown, 1);
+  if (!out.length) {
+    const s = signPlane('no foreign keys', 'this table references nothing', t.color, { w: 5, h: 1 });
+    s.position.set(-halfW + 0.1, 2, 0); s.rotation.y = Math.PI / 2; s.material.opacity = 0.5;
+    room.add(s);
+  }
+  if (!inc.length) {
+    const s = signPlane('nothing points here', 'no foreign keys reference this table', t.color, { w: 5, h: 1 });
+    s.position.set(halfW - 0.1, 2, 0); s.rotation.y = -Math.PI / 2; s.material.opacity = 0.5;
+    room.add(s);
+  }
+
+  // Back wall: the table this row lives in, and the lobby
+  addPortal(room, {
+    x: -3.4, z: zB - 0.05, yaw: Math.PI, color: t.color, label: `▤ ${t.name}`,
+    sub: `all ${t.count.toLocaleString()} rows`, target: { type: 'table', table: t.name, page: 0 },
+  });
+  addPortal(room, {
+    x: 3.4, z: zB - 0.05, yaw: Math.PI, color: new THREE.Color(0x3ef2ff), label: '↩ LOBBY',
+    sub: dbName, target: { type: 'lobby' },
+  });
+  return room;
+}
+
+/* =====================================================================
+   Navigation, transitions, history
+   ===================================================================== */
+let room = null;
+let currentLoc = null;
+let transitioning = false;
+let arrivedAt = 0;
+let histDepth = 0;
+let historyOk = true;
+const fallbackStack = [];
+const trail = [];
+
+const flashEl = $('#flash');
+function animate(ms, fn) {
+  return new Promise((resolve) => {
+    const t0 = performance.now();
+    const step = (now) => {
+      const k = Math.min(1, (now - t0) / ms);
+      fn(k);
+      if (k < 1) requestAnimationFrame(step); else resolve();
+    };
+    requestAnimationFrame(step);
+  });
+}
+
+function buildRoom(loc) {
+  try {
+    if (loc.type === 'table') return buildTable(loc);
+    if (loc.type === 'row') return buildRow(loc);
+  } catch (e) {
+    console.error(e);
+    const r = new Room();
+    r.title = 'Something went wrong';
+    r.sub = String(e.message || e);
+    r.bounds = { type: 'rect', minX: -6, maxX: 6, minZ: -6, maxZ: 6 };
+    r.spawn = { x: 0, z: 3, yaw: 0 };
+    addBillboard(r, signPlane('ERROR', r.sub, new THREE.Color(0xff3e6c), { w: 8, h: 1.4 }), 0, 2.5, -3);
+    addPortal(r, { x: 0, z: 6, yaw: Math.PI, color: new THREE.Color(0x3ef2ff), label: '↩ LOBBY', target: { type: 'lobby' } });
+    return r;
+  }
+  return buildLobby();
+}
+
+function enterRoom(loc, prevKey) {
+  if (room) { scene.remove(room.group); room.dispose(); }
+  room = buildRoom(loc);
+  scene.add(room.group);
+  currentLoc = loc;
+  setWorldColor(room.color);
+  const anchor = prevKey && room.anchors.find((a) => a.key === prevKey);
+  const s = anchor || room.spawn;
+  player.pos.set(s.x, 0, s.z);
+  player.vel.set(0, 0, 0);
+  player.vy = 0;
+  player.yaw = s.yaw;
+  player.pitch = 0;
+  arrivedAt = clock.elapsedTime;
+  floorMat.uniforms.uPulseStart.value = shared.time.value;
+  floorMat.uniforms.uPulseCenter.value.set(s.x, s.z);
+  hover.set(null);
+  updateHud();
+}
+
+let pendingPop = null;
+async function go(loc, { push = true } = {}) {
+  if (!schema) return;
+  if (transitioning) {
+    // browser back/forward mid-transition: catch up once this one finishes
+    if (!push) pendingPop = loc;
+    return;
+  }
+  transitioning = true;
+  const prevKey = currentLoc ? locKey(currentLoc) : null;
+  audio.whoosh();
+  const c = locColor(loc);
+  flashEl.style.background = `radial-gradient(circle at center, #ffffff 0%, ${css(c)} 25%, rgba(2,3,10,1) 75%)`;
+  await animate(260, (k) => {
+    flashEl.style.opacity = k * k;
+    camera.fov = BASE_FOV + 55 * k * k;
+    camera.updateProjectionMatrix();
+  });
+  if (push) {
+    const hash = locToHash(loc);
+    const url = location.pathname + location.search + (hash ? '#' + hash : '');
+    if (historyOk) {
+      try { history.pushState({ depth: ++histDepth }, '', url); } catch (e) { historyOk = false; }
+    }
+    if (!historyOk && currentLoc) fallbackStack.push(currentLoc);
+  }
+  enterRoom(loc, prevKey);
+  await animate(520, (k) => {
+    flashEl.style.opacity = 1 - easeOut(k);
+    camera.fov = BASE_FOV + 55 * (1 - easeOut(k));
+    camera.updateProjectionMatrix();
+  });
+  transitioning = false;
+  if (pendingPop) { const next = pendingPop; pendingPop = null; go(next, { push: false }); }
+}
+
+function goBack() {
+  if (transitioning) return;
+  if (historyOk && histDepth > 0) history.back();
+  else if (!historyOk && fallbackStack.length) go(fallbackStack.pop(), { push: false });
+  else if (currentLoc.type !== 'lobby') go({ type: 'lobby' });
+}
+
+addEventListener('popstate', (e) => {
+  if (!schema) return;
+  histDepth = (e.state && e.state.depth) || 0;
+  go(hashToLoc(location.hash), { push: false });
+});
+
+function updateHud() {
+  const c = room.color;
+  $('#where').textContent = room.title;
+  $('#where').style.color = css(c.clone().lerp(new THREE.Color(1, 1, 1), 0.35));
+  $('#whereSub').textContent = room.sub;
+  const name = currentLoc.type === 'lobby' ? 'lobby'
+    : currentLoc.type === 'table' ? `▤ ${currentLoc.table}${currentLoc.filter ? ' (filtered)' : ''}`
+      : `${currentLoc.table} ${keyText(currentLoc.key)}`;
+  if (!trail.length || trail[trail.length - 1].name !== name) trail.push({ name, color: css(c) });
+  if (trail.length > 7) trail.shift();
+  const el = $('#trail');
+  el.innerHTML = '';
+  trail.forEach((s, i) => {
+    const span = document.createElement('span');
+    span.textContent = (i ? '› ' : '') + s.name;
+    span.style.color = s.color;
+    if (i === trail.length - 1) span.className = 'cur';
+    el.appendChild(span);
+  });
+}
+
+/* =====================================================================
+   Row inspector (HTML overlay with every column, and clickable FKs)
+   ===================================================================== */
+let modalOpen = false;
+function openInspector(t, row) {
+  modalOpen = true;
+  if (document.pointerLockElement) document.exitPointerLock();
+  const m = $('#modal');
+  m.querySelector('h3').textContent = `${t.name} ${keyText(keyOf(t, row))} — ${rowLabel(t, row)}`;
+  m.querySelector('h3').style.color = css(t.color.clone().lerp(new THREE.Color(1, 1, 1), 0.3));
+  const body = m.querySelector('.body');
+  body.innerHTML = '';
+  const table = document.createElement('table');
+  for (const col of t.columns) {
+    const tr = table.insertRow();
+    const k = tr.insertCell(); k.className = 'k'; k.textContent = col.name;
+    const v = tr.insertCell(); v.className = 'v';
+    const val = row[col.name];
+    if (val == null) { v.innerHTML = '<span class="null">null</span>'; }
+    else if (val instanceof Uint8Array) v.textContent = `<blob ${val.length} bytes>`;
+    else v.textContent = String(val);
+    const fkv = fkValueFor(t, row, col.name);
+    if (fkv && fkv.target) {
+      const d = document.createElement('div');
+      d.className = 'fk';
+      const b = document.createElement('button');
+      b.textContent = `→ ${fkv.fk.table}: ${fkv.target.label}`;
+      b.onclick = () => { closeInspector(); go({ type: 'row', table: fkv.fk.table, key: fkv.target.key }); };
+      d.appendChild(b);
+      v.appendChild(d);
+    }
+  }
+  body.appendChild(table);
+  m.classList.remove('hidden');
+  $('#enter').classList.add('hidden');
+}
+function closeInspector() {
+  modalOpen = false;
+  $('#modal').classList.add('hidden');
+  if (!isTouch && !dragMode) $('#enter').classList.remove('hidden');
+}
+$('#modalClose').onclick = closeInspector;
+$('#modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closeInspector(); });
+
+/* =====================================================================
+   Sound: a low drone, blips on hover, a whoosh between rooms
+   ===================================================================== */
+const audio = {
+  ctx: null, master: null, muted: false,
+  init() {
+    if (this.ctx) return;
+    try {
+      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = this.muted ? 0 : 0.5;
+      this.master.connect(this.ctx.destination);
+      const lp = this.ctx.createBiquadFilter();
+      lp.type = 'lowpass'; lp.frequency.value = 260;
+      const g = this.ctx.createGain(); g.gain.value = 0.05;
+      lp.connect(g); g.connect(this.master);
+      for (const f of [55, 55.4, 82.5]) {
+        const o = this.ctx.createOscillator();
+        o.type = 'sawtooth'; o.frequency.value = f;
+        o.connect(lp); o.start();
+      }
+    } catch (e) { this.ctx = null; }
+  },
+  toggle() {
+    this.muted = !this.muted;
+    if (this.master) this.master.gain.setTargetAtTime(this.muted ? 0 : 0.5, this.ctx.currentTime, 0.05);
+  },
+  blip(freq = 1200) {
+    if (!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(freq, t); o.frequency.exponentialRampToValueAtTime(freq * 1.5, t + 0.05);
+    g.gain.setValueAtTime(0.06, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.08);
+    o.connect(g); g.connect(this.master); o.start(t); o.stop(t + 0.1);
+  },
+  whoosh() {
+    if (!this.ctx || this.muted) return;
+    const t = this.ctx.currentTime, len = 0.9;
+    const buf = this.ctx.createBuffer(1, this.ctx.sampleRate * len, this.ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = this.ctx.createBufferSource(); src.buffer = buf;
+    const bp = this.ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 2.5;
+    bp.frequency.setValueAtTime(200, t);
+    bp.frequency.exponentialRampToValueAtTime(3200, t + 0.3);
+    bp.frequency.exponentialRampToValueAtTime(150, t + len);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t + 0.25); g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+    src.connect(bp); bp.connect(g); g.connect(this.master); src.start(t);
+  },
+};
+
+/* =====================================================================
+   Player: movement, look, collisions, portal triggers
+   ===================================================================== */
+const player = { pos: new THREE.Vector3(), vel: new THREE.Vector3(), yaw: 0, pitch: 0, y: 0, vy: 0, bob: 0 };
+const keys = new Set();
+const joy = { x: 0, y: 0 };
+let dragMode = false;
+let started = false;
+
+const EYE = 1.7;
+function updatePlayer(dt) {
+  let fx = 0, fz = 0;
+  if (keys.has('KeyW') || keys.has('ArrowUp')) fz += 1;
+  if (keys.has('KeyS') || keys.has('ArrowDown')) fz -= 1;
+  if (keys.has('KeyD')) fx += 1;
+  if (keys.has('KeyA')) fx -= 1;
+  if (keys.has('ArrowLeft')) player.yaw += dt * 2.2;
+  if (keys.has('ArrowRight')) player.yaw -= dt * 2.2;
+  fx += joy.x; fz += -joy.y;
+  const len = Math.hypot(fx, fz);
+  if (len > 1) { fx /= len; fz /= len; }
+  const speed = keys.has('ShiftLeft') || keys.has('ShiftRight') ? 11 : 5.5;
+  const sin = Math.sin(player.yaw), cos = Math.cos(player.yaw);
+  const wishX = (fx * cos - fz * sin) * speed;
+  const wishZ = (-fx * sin - fz * cos) * speed;
+  const accel = 1 - Math.exp(-dt * 10);
+  player.vel.x += (wishX - player.vel.x) * accel;
+  player.vel.z += (wishZ - player.vel.z) * accel;
+  player.pos.x += player.vel.x * dt;
+  player.pos.z += player.vel.z * dt;
+
+  // jump + gravity
+  player.vy -= 22 * dt;
+  player.y = Math.max(0, player.y + player.vy * dt);
+  if (player.y === 0) player.vy = Math.max(0, player.vy);
+
+  if (room) {
+    const m = 0.35, b = room.bounds, p = player.pos;
+    if (b.type === 'circle') {
+      const r = Math.hypot(p.x, p.z), max = b.r - m;
+      if (r > max) { p.x *= max / r; p.z *= max / r; }
+    } else {
+      p.x = clamp(p.x, b.minX + m, b.maxX - m);
+      p.z = clamp(p.z, b.minZ + m, b.maxZ - m);
+    }
+    for (const o of room.obstacles) {
+      const dx = p.x - o.x, dz = p.z - o.z, d = Math.hypot(dx, dz);
+      if (d < o.r && d > 1e-4) { p.x = o.x + dx / d * o.r; p.z = o.z + dz / d * o.r; }
+    }
+    // walk into a portal to travel through it
+    if (!transitioning && clock.elapsedTime - arrivedAt > 0.6) {
+      for (const pt of room.portals) {
+        const dx = p.x - pt.center.x, dz = p.z - pt.center.z;
+        const along = dx * pt.normal.x + dz * pt.normal.z;
+        const lat = dx * pt.tangent.x + dz * pt.tangent.z;
+        if (along < 0.6 && along > -1 && Math.abs(lat) < pt.w / 2 - 0.25) { go(pt.target); break; }
+      }
+    }
+  }
+
+  const moving = Math.hypot(player.vel.x, player.vel.z);
+  player.bob += dt * moving * 1.6;
+  const bob = player.y === 0 ? Math.sin(player.bob) * 0.04 * Math.min(1, moving / 5) : 0;
+  camera.position.set(player.pos.x, EYE + player.y + bob, player.pos.z);
+  camera.rotation.set(player.pitch, player.yaw, 0);
+}
+
+function look(dx, dy, sens = 0.0022) {
+  player.yaw -= dx * sens;
+  player.pitch = clamp(player.pitch - dy * sens, -1.45, 1.45);
+}
+
+/* ---------- hover + interact ---------- */
+const raycaster = new THREE.Raycaster();
+raycaster.far = 40;
+const hover = {
+  obj: null,
+  set(o) {
+    if (o === this.obj) return;
+    if (this.obj && this.obj.userData.hover) this.obj.userData.hover(false);
+    this.obj = o;
+    if (o) { o.userData.hover && o.userData.hover(true); audio.blip(o.userData.tip.startsWith('Enter') ? 900 : 1400); }
+    const tip = $('#tooltip');
+    if (o && started) {
+      tip.innerHTML = '';
+      tip.append(o.userData.tip + '  ');
+      const kbd = document.createElement('kbd');
+      kbd.textContent = isTouch ? '[tap]' : '[click]';
+      tip.append(kbd);
+      tip.classList.remove('hidden');
+    } else tip.classList.add('hidden');
+    $('#crosshair').classList.toggle('active', !!o);
+  },
+};
+function pick(ndcX = 0, ndcY = 0) {
+  if (!room || !room.interactives.length) return null;
+  raycaster.setFromCamera({ x: ndcX, y: ndcY }, camera);
+  const hit = raycaster.intersectObjects(room.interactives, false)[0];
+  return hit && hit.distance <= (hit.object.userData.maxDist || 40) ? hit.object : null;
+}
+function interact(obj) {
+  if (obj && obj.userData.action && !transitioning) obj.userData.action();
+}
+
+/* ---------- input ---------- */
+const canvasEl = renderer.domElement;
+addEventListener('keydown', (e) => {
+  if (!started || modalOpen) {
+    if (modalOpen && e.code === 'Escape') closeInspector();
+    return;
+  }
+  if (e.target && e.target.tagName === 'INPUT') return;
+  keys.add(e.code);
+  if (e.code === 'Space') { if (player.y === 0) player.vy = 7.5; e.preventDefault(); }
+  if (e.code === 'KeyE' || e.code === 'Enter') interact(hover.obj);
+  if (e.code === 'Backspace' || e.code === 'KeyB') { e.preventDefault(); goBack(); }
+  if (e.code === 'KeyH' && currentLoc.type !== 'lobby') go({ type: 'lobby' });
+  if (e.code === 'KeyM') audio.toggle();
+});
+addEventListener('keyup', (e) => keys.delete(e.code));
+addEventListener('blur', () => keys.clear());
+
+$('#enter').addEventListener('click', () => {
+  audio.init();
+  if (audio.ctx && audio.ctx.state === 'suspended') audio.ctx.resume();
+  try {
+    const r = canvasEl.requestPointerLock();
+    if (r && r.catch) r.catch(enableDragMode);
+  } catch (e) { enableDragMode(); }
+});
+function enableDragMode() {
+  dragMode = true;
+  $('#enter').classList.add('hidden');
+}
+let lockedAt = 0;
+document.addEventListener('pointerlockchange', () => {
+  const locked = document.pointerLockElement === canvasEl;
+  lockedAt = performance.now();
+  if (locked) $('#enter').classList.add('hidden');
+  else if (started && !modalOpen && !dragMode && !isTouch) $('#enter').classList.remove('hidden');
+  if (!locked) keys.clear();
+});
+document.addEventListener('pointerlockerror', enableDragMode);
+
+let drag = null;
+canvasEl.addEventListener('mousedown', (e) => {
+  if (!started || isTouch) return;
+  if (document.pointerLockElement === canvasEl) { interact(hover.obj); return; }
+  if (dragMode) drag = { x: e.clientX, y: e.clientY, moved: 0 };
+});
+addEventListener('mousemove', (e) => {
+  if (document.pointerLockElement === canvasEl) {
+    // Browsers sometimes report one huge bogus jump right after the lock engages
+    if (performance.now() - lockedAt < 150 || Math.abs(e.movementX) > 400 || Math.abs(e.movementY) > 400) return;
+    look(e.movementX, e.movementY);
+  }
+  else if (drag) {
+    look(-(e.clientX - drag.x) * 1.5, -(e.clientY - drag.y) * 1.5);
+    drag.moved += Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y);
+    drag.x = e.clientX; drag.y = e.clientY;
+  }
+});
+addEventListener('mouseup', (e) => {
+  if (drag && drag.moved < 6) interact(pick((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1));
+  drag = null;
+});
+
+// Touch: joystick bottom-left, drag anywhere else to look, tap to interact
+const touches = new Map();
+const joyEl = $('#joy'), joyKnob = joyEl.firstElementChild;
+addEventListener('touchstart', (e) => {
+  if (!started || modalOpen) return;
+  audio.init();
+  for (const t of e.changedTouches) {
+    const jr = joyEl.getBoundingClientRect();
+    const inJoy = Math.hypot(t.clientX - (jr.left + jr.width / 2), t.clientY - (jr.top + jr.height / 2)) < jr.width * 0.75;
+    touches.set(t.identifier, { kind: inJoy ? 'joy' : 'look', x: t.clientX, y: t.clientY, sx: t.clientX, sy: t.clientY, t0: performance.now() });
+  }
+}, { passive: true });
+addEventListener('touchmove', (e) => {
+  for (const t of e.changedTouches) {
+    const s = touches.get(t.identifier);
+    if (!s) continue;
+    if (s.kind === 'joy') {
+      const jr = joyEl.getBoundingClientRect();
+      let dx = (t.clientX - (jr.left + jr.width / 2)) / (jr.width / 2);
+      let dy = (t.clientY - (jr.top + jr.height / 2)) / (jr.height / 2);
+      const l = Math.hypot(dx, dy);
+      if (l > 1) { dx /= l; dy /= l; }
+      joy.x = dx; joy.y = dy;
+      joyKnob.style.transform = `translate(${dx * 36}px, ${dy * 36}px)`;
+    } else {
+      look(-(t.clientX - s.x) * 2.2, -(t.clientY - s.y) * 2.2, 0.0022);
+    }
+    s.x = t.clientX; s.y = t.clientY;
+  }
+}, { passive: true });
+addEventListener('touchend', (e) => {
+  for (const t of e.changedTouches) {
+    const s = touches.get(t.identifier);
+    if (!s) continue;
+    if (s.kind === 'joy') { joy.x = joy.y = 0; joyKnob.style.transform = ''; }
+    else if (performance.now() - s.t0 < 300 && Math.hypot(t.clientX - s.sx, t.clientY - s.sy) < 12) {
+      interact(pick((t.clientX / innerWidth) * 2 - 1, -(t.clientY / innerHeight) * 2 + 1));
+    }
+    touches.delete(t.identifier);
+  }
+});
+
+/* =====================================================================
+   Main loop
+   ===================================================================== */
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+  shared.time.value = t;
+  if (started && room) {
+    updatePlayer(dt);
+    for (const u of room.updaters) u(dt, t);
+    for (const b of room.billboards) b.rotation.y = Math.atan2(camera.position.x - b.position.x, camera.position.z - b.position.z);
+    hover.set(pick());
+  } else {
+    // attract mode: drift over the grid while the landing page is up
+    camera.position.set(Math.sin(t * 0.05) * 6, 2.2, Math.cos(t * 0.05) * 6);
+    camera.rotation.set(0.05, t * 0.05 + Math.PI * 0.15, 0);
+  }
+  floorMat.uniforms.uCam.value.copy(camera.position);
+  dust.rotation.y = t * 0.01;
+  dust.position.y = Math.sin(t * 0.2) * 0.3;
+  stars.rotation.y = t * 0.002;
+  composer.render();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// handy for poking around from the devtools console
+window.datasplore = { player, go, get schema() { return schema; }, get db() { return db; } };
+
+/* =====================================================================
+   Loading the database
+   ===================================================================== */
+const SQLJS_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/';
+const sqlReady = initSqlJs({ locateFile: (f) => SQLJS_BASE + f });
+const fontsReady = Promise.race([
+  Promise.all([
+    document.fonts.load(`700 40px ${FONT_TITLE}`),
+    document.fonts.load(`900 40px ${FONT_TITLE}`),
+    document.fonts.load(`400 20px ${FONT_MONO}`),
+    document.fonts.load(`700 20px ${FONT_MONO}`),
+  ]),
+  new Promise((r) => setTimeout(r, 4000)),
+]).catch(() => {});
+
+function showError(msg) {
+  const el = $('#error');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  $('#progress').classList.add('hidden');
+}
+function setProgress(frac, label) {
+  $('#progress').classList.remove('hidden');
+  $('#progress .fill').style.width = `${Math.round(clamp(frac, 0, 1) * 100)}%`;
+  $('#progress .label').textContent = label;
+}
+const mb = (n) => (n / 1048576).toFixed(n > 10485760 ? 0 : 1) + ' MB';
+
+async function fetchWithProgress(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+  const total = +res.headers.get('content-length') || 0;
+  if (!res.body || !res.body.getReader) return new Uint8Array(await res.arrayBuffer());
+  const reader = res.body.getReader();
+  const chunks = [];
+  let got = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    got += value.length;
+    setProgress(total ? got / total : 0.5, `downloading… ${mb(got)}${total ? ' of ' + mb(total) : ''}`);
+  }
+  const out = new Uint8Array(got);
+  let o = 0;
+  for (const c of chunks) { out.set(c, o); o += c.length; }
+  return out;
+}
+
+async function openDatabase(bytes, name) {
+  const head = new TextDecoder().decode(bytes.subarray(0, 15));
+  if (head !== 'SQLite format 3') throw new Error('That file does not look like a SQLite database (bad header).');
+  setProgress(1, 'opening database…');
+  const SQL = await sqlReady;
+  db = new SQL.Database(bytes);
+  setProgress(1, 'reading schema…');
+  await new Promise((r) => setTimeout(r, 20));
+  schema = loadSchema();
+  dbName = name;
+  document.title = `${name} · Datasplore`;
+  $('#dbname').textContent = name;
+  await fontsReady;
+  $('#start').classList.add('hidden');
+  if (document.activeElement) document.activeElement.blur();
+  $('#hud').classList.remove('hidden');
+  $('#crosshair').classList.remove('hidden');
+  if (isTouch) $('#joy').classList.remove('hidden');
+  else { $('#help').classList.remove('hidden'); $('#enter').classList.remove('hidden'); }
+  started = true;
+  try { history.replaceState({ depth: 0 }, '', location.href); } catch (e) { historyOk = false; }
+  enterRoom(hashToLoc(location.hash), null);
+}
+
+async function loadFromUrl(url) {
+  $('#urlInput').value = url;
+  setProgress(0, 'connecting…');
+  let bytes;
+  try {
+    bytes = await fetchWithProgress(url);
+  } catch (e) {
+    showError(`Could not fetch ${url}\n${e.message}\n\nThe server needs to send an Access-Control-Allow-Origin header for this page to read the file.`);
+    return;
+  }
+  const name = decodeURIComponent(new URL(url, location.href).pathname.split('/').pop() || 'database');
+  try { await openDatabase(bytes, name); } catch (e) { console.error(e); showError(e.message || String(e)); }
+}
+
+async function loadFromFile(file) {
+  $('#error').classList.add('hidden');
+  setProgress(0.5, `reading ${file.name}…`);
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    // a local file can't be re-fetched from the URL, so drop any stale ?url=
+    if (location.search) history.replaceState(null, '', location.pathname);
+    await openDatabase(bytes, file.name);
+  } catch (e) { console.error(e); showError(e.message || String(e)); }
+}
+
+$('#urlForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const u = $('#urlInput').value.trim();
+  if (u) location.search = '?url=' + encodeURIComponent(u);
+});
+$('#fileBtn').onclick = () => $('#fileInput').click();
+$('#fileInput').onchange = (e) => { if (e.target.files[0]) loadFromFile(e.target.files[0]); };
+addEventListener('dragover', (e) => { if (!started) e.preventDefault(); });
+addEventListener('drop', (e) => {
+  if (started) return;
+  e.preventDefault();
+  const f = e.dataTransfer.files[0];
+  if (f) loadFromFile(f);
+});
+
+const startUrl = new URLSearchParams(location.search).get('url');
+if (startUrl) loadFromUrl(startUrl);
+</script>
+</body>
+</html>
